@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0d0f14">
 <title>Claude ruft an</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
 *{box-sizing:border-box;margin:0}
 html,body{height:100%}
@@ -194,6 +197,8 @@ textarea:focus{outline:2px solid #e8865a;border-color:transparent}
     anrufLaden();
   });
 
+  window.addEventListener('hashchange', () => location.reload());
+  try { navigator.serviceWorker && navigator.serviceWorker.register('sw.js'); } catch {}
   anrufLaden();
 }
 </script>
