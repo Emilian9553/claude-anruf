@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0f14">
+<title>Claude ruft an</title>
+<style>
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#fff;
+  background:radial-gradient(120% 80% at 50% 0%,#3a2418 0%,#17130f 45%,#0d0f14 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+  padding:max(48px,env(safe-area-inset-top)) 24px max(40px,env(safe-area-inset-bottom));overflow:hidden}
+.oben{text-align:center;width:100%}
+.status{font-size:15px;color:#d9cfc6;letter-spacing:.02em;min-height:22px}
+.name{font-size:40px;font-weight:600;margin:6px 0 2px}
+.sub{font-size:15px;color:#b3a89e}
+.avatar{position:relative;width:150px;height:150px;margin:36px auto 0}
+.avatar .kreis{position:absolute;inset:0;border-radius:50%;background:linear-gradient(145deg,#e8865a,#c25b30);
+  display:grid;place-items:center;font-size:64px;font-weight:700;box-shadow:0 18px 40px #0008}
+.ring{position:absolute;inset:0;border-radius:50%;border:2px solid #e8865a;opacity:0}
+.klingelt .ring{animation:puls 2s ease-out infinite}.klingelt .ring:nth-child(2){animation-delay:.7s}
+@keyframes puls{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.9);opacity:0}}
+@media(prefers-reduced-motion:reduce){.klingelt .ring{animation:none}}
+.mitte{width:100%;max-width:460px;text-align:center}
+.frage{font-size:17px;color:#efe7df;background:#ffffff12;border-radius:18px;padding:14px 16px;display:none;
+  max-height:30vh;overflow:auto;text-align:left}
+.frage.an{display:block}
+.antwort{display:none;margin-top:14px}
+.antwort.an{display:block}
+textarea{width:100%;min-height:84px;font:17px/1.4 inherit;color:#fff;background:#ffffff1a;border:1px solid #ffffff30;
+  border-radius:16px;padding:12px 14px;resize:none}
+textarea:focus{outline:2px solid #e8865a;border-color:transparent}
+.hinweis{font-size:13px;color:#a89d93;margin-top:8px;min-height:18px}
+.reihe{display:flex;gap:10px;margin-top:10px}
+.reihe button{flex:1;min-height:48px;border-radius:24px;border:0;font:600 16px inherit;color:#fff;background:#ffffff22}
+.reihe .senden{background:#2fb35a}
+.knoepfe{display:flex;justify-content:space-around;width:100%;max-width:340px}
+.knopf{display:flex;flex-direction:column;align-items:center;gap:8px;font-size:14px;color:#d9cfc6;background:none;border:0}
+.knopf span{width:72px;height:72px;border-radius:50%;display:grid;place-items:center;box-shadow:0 10px 24px #0007}
+.knopf svg{width:32px;height:32px;fill:#fff}
+.ab span{background:#2fb35a}.auf span{background:#e5483d}.auf svg{transform:rotate(135deg)}
+.klingelt .ab span{animation:wackel 1.2s ease-in-out infinite}
+@keyframes wackel{0%,60%,100%{transform:rotate(0)}10%,30%,50%{transform:rotate(-14deg)}20%,40%{transform:rotate(14deg)}}
+.knopf:focus-visible span{outline:3px solid #fff;outline-offset:3px}
+.versteckt{display:none!important}
+.setup{width:100%;max-width:420px;background:#ffffff12;border-radius:18px;padding:16px}
+.setup input{width:100%;min-height:46px;font:16px inherit;color:#fff;background:#ffffff1a;border:1px solid #ffffff30;border-radius:12px;padding:0 12px;margin:8px 0}
+.setup button{width:100%;min-height:46px;border-radius:23px;border:0;background:#e8865a;color:#fff;font:600 16px inherit}
+</style>
+</head>
+<body class="klingelt">
+<div class="oben">
+  <div class="status" id="status">Eingehender Anruf …</div>
+  <div class="name">Claude</div>
+  <div class="sub" id="sub">Claude Code</div>
+  <div class="avatar"><div class="ring"></div><div class="ring"></div><div class="kreis">C</div></div>
+</div>
+
+<div class="mitte">
+  <div class="frage" id="frage"></div>
+  <div class="antwort" id="antwort">
+    <textarea id="text" placeholder="Sprich jetzt … (oder tippe / nutz das Mikro der Tastatur)"></textarea>
+    <div class="hinweis" id="hinweis"></div>
+    <div class="reihe">
+      <button id="nochmal" type="button">🎤 Nochmal</button>
+      <button id="senden" class="senden" type="button">Senden</button>
+    </div>
+  </div>
+  <form class="setup versteckt" id="setup">
+    <div>Kein Anruf gefunden. Gib dein ntfy-Topic ein, dann wird der letzte Anruf geladen:</div>
+    <input id="topicFeld" placeholder="emilian-claude-…" autocomplete="off">
+    <button type="submit">Letzten Anruf laden</button>
+  </form>
+</div>
+
+<div class="knoepfe" id="knoepfe">
+  <button class="knopf auf" id="auflegen" type="button"><span><svg viewBox="0 0 24 24"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.6a1 1 0 0 1-.25 1z"/></svg></span>Ablehnen</button>
+  <button class="knopf ab" id="annehmen" type="button"><span><svg viewBox="0 0 24 24"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.6a1 1 0 0 1-.25 1z"/></svg></span>Annehmen</button>
+</div>
+
+<script>
+{
+  const NTFY = 'https://ntfy.sh';
+  const $ = (id) => document.getElementById(id);
+  let topic = '', callId = '', anruf = null, audio = null, erkennung = null, timer = null, sek = 0, autoSend = null, fertig = false;
+
+  const [hTopic, hId] = decodeURIComponent(location.hash.slice(1)).split('.');
+  try { topic = hTopic || localStorage.getItem('claudeTopic') || ''; if (hTopic) localStorage.setItem('claudeTopic', hTopic); } catch { topic = hTopic || ''; }
+  callId = hId || '';
+
+  const status = (t) => { $('status').textContent = t; };
+
+  async function anrufLaden() {
+    if (!topic) { $('setup').classList.remove('versteckt'); $('knoepfe').classList.add('versteckt'); status('Kein Anruf'); return; }
+    try {
+      const r = await fetch(`${NTFY}/${topic}/json?poll=1&since=3h`);
+      const liste = (await r.text()).split('\n').filter(Boolean).map((z) => JSON.parse(z)).filter((m) => m.event === 'message' && m.attachment);
+      anruf = callId ? liste.find((m) => (m.click || '').endsWith('.' + callId)) : liste[liste.length - 1];
+      if (!anruf) { status('Anruf nicht mehr verfügbar'); $('sub').textContent = 'Älter als 3 Stunden oder schon vorbei'; document.body.classList.remove('klingelt'); return; }
+      callId = (anruf.click || '').split('.').pop();
+      $('frage').textContent = anruf.message || '';
+      try { navigator.vibrate && navigator.vibrate([400, 200, 400, 200, 400]); } catch {}
+    } catch (e) { status('Keine Verbindung'); $('sub').textContent = 'Internet prüfen und neu laden'; }
+  }
+
+  function uhr() {
+    sek = 0; clearInterval(timer);
+    timer = setInterval(() => { sek++; status(`${String(Math.floor(sek / 60)).padStart(2, '0')}:${String(sek % 60).padStart(2, '0')}`); }, 1000);
+    status('00:00');
+  }
+
+  function zuhoeren() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    $('antwort').classList.add('an');
+    if (!SR) { $('hinweis').textContent = 'Tipp ins Feld und nutz das Mikro deiner Tastatur.'; $('text').focus(); return; }
+    clearTimeout(autoSend);
+    erkennung = new SR();
+    erkennung.lang = 'de-DE'; erkennung.interimResults = true; erkennung.continuous = false;
+    let basis = $('text').value ? $('text').value + ' ' : '';
+    erkennung.onstart = () => { $('hinweis').textContent = '🎤 Ich höre zu …'; };
+    erkennung.onresult = (ev) => {
+      let t = '';
+      for (const r of ev.results) t += r[0].transcript;
+      $('text').value = basis + t;
+    };
+    erkennung.onerror = (ev) => {
+      $('hinweis').textContent = ev.error === 'not-allowed' ? 'Mikrofon blockiert – erlaub es in Chrome oder tippe.' : 'Nicht verstanden – tipp auf Nochmal.';
+    };
+    erkennung.onend = () => {
+      if (fertig) return;
+      if ($('text').value.trim()) {
+        let n = 3;
+        $('hinweis').textContent = `Wird in ${n} s gesendet … (Text antippen zum Ändern)`;
+        autoSend = setInterval(() => {
+          n--;
+          if (n <= 0) { clearInterval(autoSend); senden('antwort'); }
+          else $('hinweis').textContent = `Wird in ${n} s gesendet … (Text antippen zum Ändern)`;
+        }, 1000);
+      } else if ($('hinweis').textContent.startsWith('🎤')) {
+        $('hinweis').textContent = 'Nichts gehört – tipp auf Nochmal.';
+      }
+    };
+    try { erkennung.start(); } catch {}
+  }
+
+  async function senden(aktion) {
+    if (fertig) return;
+    fertig = true;
+    clearInterval(autoSend);
+    try { erkennung && erkennung.abort(); } catch {}
+    try { audio && audio.pause(); } catch {}
+    const text = $('text').value.trim();
+    try {
+      await fetch(`${NTFY}/${topic}-antwort`, { method: 'POST', body: JSON.stringify({ c: callId, aktion, text }) });
+      ende(aktion === 'antwort' ? 'Gesendet ✓ Claude baut weiter' : 'Aufgelegt');
+    } catch {
+      fertig = false;
+      $('hinweis').textContent = 'Senden fehlgeschlagen – nochmal versuchen.';
+    }
+  }
+
+  function ende(t) {
+    clearInterval(timer);
+    document.body.classList.remove('klingelt');
+    status('Anruf beendet');
+    $('sub').textContent = t;
+    $('antwort').classList.remove('an');
+    $('knoepfe').classList.add('versteckt');
+  }
+
+  $('annehmen').addEventListener('click', () => {
+    if (!anruf || fertig) return;
+    document.body.classList.remove('klingelt');
+    $('annehmen').classList.add('versteckt');
+    $('auflegen').lastChild.textContent = 'Auflegen';
+    $('frage').classList.add('an');
+    uhr();
+    audio = new Audio(anruf.attachment.url);
+    audio.onended = zuhoeren;
+    audio.onerror = zuhoeren;
+    audio.play().catch(zuhoeren);
+  });
+  $('auflegen').addEventListener('click', () => senden(anruf && $('text').value.trim() ? 'antwort' : 'abgelehnt'));
+  $('nochmal').addEventListener('click', () => { clearInterval(autoSend); $('text').value = ''; zuhoeren(); });
+  $('senden').addEventListener('click', () => senden('antwort'));
+  $('text').addEventListener('focus', () => { clearInterval(autoSend); $('hinweis').textContent = ''; });
+  $('setup').addEventListener('submit', (e) => {
+    e.preventDefault();
+    topic = $('topicFeld').value.trim();
+    try { localStorage.setItem('claudeTopic', topic); } catch {}
+    $('setup').classList.add('versteckt'); $('knoepfe').classList.remove('versteckt'); status('Eingehender Anruf …');
+    anrufLaden();
+  });
+
+  anrufLaden();
+}
+</script>
+</body>
+</html>
